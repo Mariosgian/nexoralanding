@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXORA — AI Infrastructure Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #040810;
+    --bg2: #060d1a;
+    --glass: rgba(255,255,255,0.04);
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-hover: rgba(255,255,255,0.08);
+    --cyan: #00f5ff;
+    --cyan-dim: rgba(0,245,255,0.15);
+    --violet: #7c3aed;
+    --violet-dim: rgba(124,58,237,0.2);
+    --pink: #f472b6;
+    --white: #f0f4ff;
+    --muted: rgba(240,244,255,0.45);
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: var(--font-body);
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* ── CURSOR ── */
+  #cursor {
+    position: fixed; width: 12px; height: 12px;
+    background: var(--cyan); border-radius: 50%;
+    pointer-events: none; z-index: 9999;
+    transform: translate(-50%,-50%);
+    transition: transform 0.1s, width 0.3s, height 0.3s, background 0.3s;
+    mix-blend-mode: screen;
+  }
+  #cursor-ring {
+    position: fixed; width: 40px; height: 40px;
+    border: 1px solid rgba(0,245,255,0.4); border-radius: 50%;
+    pointer-events: none; z-index: 9998;
+    transform: translate(-50%,-50%);
+    transition: transform 0.15s ease, width 0.3s, height 0.3s;
+  }
+  body:has(a:hover) #cursor, body:has(button:hover) #cursor { width: 20px; height: 20px; background: var(--pink); }
+  body:has(a:hover) #cursor-ring, body:has(button:hover) #cursor-ring { width: 60px; height: 60px; border-color: rgba(244,114,182,0.4); }
+
+  /* ── CANVAS ── */
+  #canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 1; opacity: 0.4;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 60px;
+    background: rgba(4,8,16,0.6);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--glass-border);
+    z-index: 100;
+    animation: fadeDown 0.8s ease both;
+  }
+  @keyframes fadeDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+
+  .logo {
+    font-family: var(--font-display);
+    font-weight: 800; font-size: 1.4rem;
+    letter-spacing: 0.15em;
+    background: linear-gradient(90deg, var(--cyan), var(--violet));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    text-decoration: none;
+  }
+  .nav-links { display: flex; gap: 40px; list-style: none; }
+  .nav-links a {
+    font-size: 0.85rem; letter-spacing: 0.08em;
+    color: var(--muted); text-decoration: none;
+    text-transform: uppercase;
+    transition: color 0.3s;
+    position: relative;
+  }
+  .nav-links a::after {
+    content: ''; position: absolute; bottom: -4px; left: 0;
+    width: 0; height: 1px; background: var(--cyan);
+    transition: width 0.3s;
+  }
+  .nav-links a:hover { color: var(--white); }
+  .nav-links a:hover::after { width: 100%; }
+  .nav-cta {
+    font-family: var(--font-display); font-weight: 600;
+    font-size: 0.82rem; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 10px 24px;
+    border: 1px solid var(--cyan); color: var(--cyan);
+    background: var(--cyan-dim); border-radius: 6px;
+    cursor: none; text-decoration: none;
+    transition: background 0.3s, box-shadow 0.3s, transform 0.2s;
+  }
+  .nav-cta:hover { background: rgba(0,245,255,0.25); box-shadow: 0 0 24px rgba(0,245,255,0.3); transform: translateY(-1px); }
+
+  /* ── SECTIONS ── */
+  section { position: relative; z-index: 2; }
+
+  /* ── HERO ── */
+  #hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 140px 60px 100px;
+  }
+
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 16px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 100px;
+    font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--cyan); margin-bottom: 32px;
+    animation: fadeUp 0.8s 0.2s ease both;
+    backdrop-filter: blur(10px);
+  }
+  .hero-badge span { width: 6px; height: 6px; background: var(--cyan); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.4;transform:scale(0.8);} }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(3rem, 7vw, 6.5rem);
+    line-height: 1.0;
+    letter-spacing: -0.03em;
+    animation: fadeUp 0.8s 0.35s ease both;
+    max-width: 900px;
+  }
+  h1 .line { display: block; }
+  h1 .gradient {
+    background: linear-gradient(135deg, var(--cyan) 0%, var(--violet) 50%, var(--pink) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-size: 200% 200%;
+    animation: gradShift 4s ease infinite;
+  }
+  @keyframes gradShift { 0%,100%{background-position:0% 50%;} 50%{background-position:100% 50%;} }
+
+  .hero-sub {
+    margin-top: 28px;
+    font-size: 1.05rem; font-weight: 300;
+    color: var(--muted); max-width: 560px;
+    line-height: 1.7;
+    animation: fadeUp 0.8s 0.5s ease both;
+  }
+
+  .hero-actions {
+    display: flex; gap: 16px; margin-top: 48px;
+    animation: fadeUp 0.8s 0.65s ease both;
+    flex-wrap: wrap; justify-content: center;
+  }
+
+  .btn-primary {
+    position: relative; overflow: hidden;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: 0.9rem; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 16px 40px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--cyan), var(--violet));
+    color: var(--bg); border: none; cursor: none;
+    transition: transform 0.2s, box-shadow 0.3s;
+    text-decoration: none; display: inline-block;
+  }
+  .btn-primary::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, var(--violet), var(--pink));
+    opacity: 0; transition: opacity 0.4s;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 40px rgba(0,245,255,0.35); }
+  .btn-primary:hover::before { opacity: 1; }
+  .btn-primary span { position: relative; z-index: 1; }
+
+  .btn-ghost {
+    font-family: var(--font-display); font-weight: 600;
+    font-size: 0.9rem; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 15px 40px; border-radius: 8px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    color: var(--white); cursor: none; text-decoration: none;
+    backdrop-filter: blur(10px);
+    transition: background 0.3s, border-color 0.3s, transform 0.2s;
+  }
+  .btn-ghost:hover { background: var(--glass-hover); border-color: rgba(255,255,255,0.2); transform: translateY(-2px); }
+
+  @keyframes fadeUp { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ── HERO STATS ── */
+  .hero-stats {
+    display: flex; gap: 60px; margin-top: 80px;
+    animation: fadeUp 0.8s 0.8s ease both;
+  }
+  .stat { text-align: center; }
+  .stat-num {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: 2rem;
+    background: linear-gradient(135deg, var(--cyan), var(--violet));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .stat-label { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 4px; }
+
+  /* ── GLOW ORBS ── */
+  .orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(80px); pointer-events: none; z-index: 1;
+  }
+  .orb-1 { width: 500px; height: 500px; background: rgba(0,245,255,0.07); top: 10%; left: -10%; }
+  .orb-2 { width: 600px; height: 600px; background: rgba(124,58,237,0.08); top: 20%; right: -15%; }
+  .orb-3 { width: 400px; height: 400px; background: rgba(244,114,182,0.06); bottom: 10%; left: 30%; }
+
+  /* ── MARQUEE ── */
+  .marquee-section {
+    padding: 40px 0;
+    border-top: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+    overflow: hidden;
+    background: rgba(255,255,255,0.015);
+  }
+  .marquee-track {
+    display: flex; gap: 60px;
+    animation: marquee 20s linear infinite;
+    width: max-content;
+  }
+  .marquee-item {
+    font-family: var(--font-display); font-size: 0.75rem;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); white-space: nowrap;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .marquee-dot { width: 4px; height: 4px; background: var(--cyan); border-radius: 50%; }
+  @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* ── FEATURES ── */
+  #features {
+    padding: 120px 60px;
+    max-width: 1200px; margin: 0 auto;
+  }
+  .section-label {
+    font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--cyan); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::before { content: ''; width: 30px; height: 1px; background: var(--cyan); }
+  .section-title {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    line-height: 1.1; letter-spacing: -0.02em;
+    max-width: 600px; margin-bottom: 70px;
+  }
+  .section-title .accent { color: var(--cyan); }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--glass-border);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .feature-card {
+    padding: 48px 40px;
+    background: var(--bg2);
+    transition: background 0.3s;
+    position: relative; overflow: hidden;
+  }
+  .feature-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: 0; transition: opacity 0.4s;
+  }
+  .feature-card:hover { background: rgba(0,245,255,0.03); }
+  .feature-card:hover::before { opacity: 1; }
+
+  .feature-icon {
+    width: 48px; height: 48px;
+    background: var(--cyan-dim);
+    border: 1px solid rgba(0,245,255,0.2);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; margin-bottom: 24px;
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+  .feature-card:hover .feature-icon { transform: scale(1.1); box-shadow: 0 0 20px rgba(0,245,255,0.2); }
+
+  .feature-title {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: 1.05rem; margin-bottom: 12px;
+  }
+  .feature-desc { font-size: 0.88rem; color: var(--muted); line-height: 1.7; }
+
+  /* ── SHOWCASE ── */
+  #showcase {
+    padding: 80px 60px 120px;
+    max-width: 1200px; margin: 0 auto;
+  }
+  .showcase-card {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    overflow: hidden;
+    backdrop-filter: blur(20px);
+    position: relative;
+  }
+  .showcase-header {
+    padding: 20px 28px;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid var(--glass-border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-r { background: #ff5f57; }
+  .dot-y { background: #ffbd2e; }
+  .dot-g { background: #28ca41; }
+  .showcase-title { margin-left: 12px; font-size: 0.8rem; color: var(--muted); letter-spacing: 0.05em; }
+
+  .showcase-body {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  }
+  .showcase-left {
+    padding: 60px;
+    border-right: 1px solid var(--glass-border);
+  }
+  .showcase-right {
+    padding: 40px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+
+  .code-block {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px; padding: 24px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem; line-height: 1.8;
+  }
+  .code-line { display: block; }
+  .c-comment { color: #4a5568; }
+  .c-keyword { color: var(--violet); }
+  .c-fn { color: var(--cyan); }
+  .c-str { color: var(--pink); }
+  .c-num { color: #f6ad55; }
+  .c-normal { color: #a0aec0; }
+
+  .metric-card {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px; padding: 20px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+    transition: border-color 0.3s, transform 0.3s;
+  }
+  .metric-card:hover { border-color: rgba(0,245,255,0.3); transform: translateX(4px); }
+  .metric-label { font-size: 0.8rem; color: var(--muted); }
+  .metric-value { font-family: var(--font-display); font-weight: 700; font-size: 1.3rem; color: var(--cyan); }
+  .metric-change { font-size: 0.72rem; color: #48bb78; margin-top: 2px; text-align: right; }
+
+  /* ── PRICING ── */
+  #pricing {
+    padding: 100px 60px;
+    max-width: 1100px; margin: 0 auto;
+    text-align: center;
+  }
+  #pricing .section-label { justify-content: center; }
+  #pricing .section-label::before { display: none; }
+  #pricing .section-title { margin: 0 auto 60px; }
+
+  .pricing-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
+
+  .pricing-card {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px; padding: 40px 32px;
+    backdrop-filter: blur(20px);
+    position: relative; overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+    text-align: left;
+  }
+  .pricing-card:hover { transform: translateY(-6px); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+  .pricing-card.featured {
+    background: linear-gradient(135deg, rgba(0,245,255,0.06), rgba(124,58,237,0.06));
+    border-color: rgba(0,245,255,0.25);
+  }
+  .pricing-card.featured::before {
+    content: 'MOST POPULAR';
+    position: absolute; top: 20px; right: 20px;
+    font-family: var(--font-display); font-size: 0.6rem;
+    letter-spacing: 0.15em; padding: 4px 10px;
+    background: linear-gradient(135deg, var(--cyan), var(--violet));
+    color: var(--bg); border-radius: 100px; font-weight: 700;
+  }
+  .pricing-name {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 20px;
+  }
+  .pricing-price {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: 2.8rem; line-height: 1;
+    background: linear-gradient(135deg, var(--white), var(--muted));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .pricing-price sup { font-size: 1.2rem; vertical-align: top; margin-top: 6px; }
+  .pricing-price span { font-size: 0.9rem; font-weight: 400; color: var(--muted); -webkit-text-fill-color: var(--muted); }
+  .pricing-desc { font-size: 0.85rem; color: var(--muted); margin: 16px 0 28px; line-height: 1.6; }
+  .pricing-features { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+  .pricing-features li { font-size: 0.85rem; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+  .pricing-features li::before { content: '✦'; color: var(--cyan); font-size: 0.7rem; flex-shrink: 0; }
+
+  .btn-plan {
+    width: 100%;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: 0.82rem; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 14px; border-radius: 8px; cursor: none;
+    border: 1px solid var(--glass-border);
+    background: var(--glass); color: var(--white);
+    transition: background 0.3s, border-color 0.3s, transform 0.2s;
+  }
+  .btn-plan:hover { background: var(--glass-hover); border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
+  .btn-plan.featured {
+    background: linear-gradient(135deg, var(--cyan), var(--violet));
+    color: var(--bg); border-color: transparent;
+  }
+  .btn-plan.featured:hover { box-shadow: 0 8px 30px rgba(0,245,255,0.3); }
+
+  /* ── CTA ── */
+  #cta {
+    padding: 120px 60px;
+    text-align: center; position: relative; overflow: hidden;
+  }
+  .cta-glow {
+    position: absolute; width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(0,245,255,0.08), transparent 70%);
+    top: 50%; left: 50%; transform: translate(-50%,-50%);
+    pointer-events: none;
+  }
+  #cta h2 {
+    font-family: var(--font-display); font-weight: 800;
+    font-size: clamp(2rem, 5vw, 4rem);
+    line-height: 1.1; letter-spacing: -0.02em;
+    margin-bottom: 20px; position: relative;
+  }
+  #cta p { color: var(--muted); font-size: 1rem; max-width: 500px; margin: 0 auto 40px; line-height: 1.7; position: relative; }
+  #cta .hero-actions { justify-content: center; }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 40px 60px;
+    border-top: 1px solid var(--glass-border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .footer-note { font-size: 0.78rem; color: var(--muted); }
+  .footer-credit {
+    font-size: 0.75rem; color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .footer-credit a { color: var(--cyan); text-decoration: none; }
+
+  /* ── SCROLL REVEAL ── */
+  .reveal { opacity: 0; transform: translateY(40px); transition: opacity 0.8s ease, transform 0.8s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+<div id="cursor"></div>
+<div id="cursor-ring"></div>
+
+<!-- NAV -->
+<nav>
+  <a class="logo" href="#">NEXORA</a>
+  <ul class="nav-links">
+    <li><a href="#features">Features</a></li>
+    <li><a href="#showcase">Platform</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+  </ul>
+  <a class="nav-cta" href="#">Get Access</a>
+</nav>
+
+<!-- HERO -->
+<section id="hero">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="hero-badge"><span></span> Now in Public Beta</div>
+
+  <h1>
+    <span class="line">Infrastructure</span>
+    <span class="line gradient">built for scale.</span>
+  </h1>
+
+  <p class="hero-sub">
+    Deploy AI models at the speed of thought. Nexora gives your team
+    a unified platform to train, deploy, and monitor production AI — without the overhead.
+  </p>
+
+  <div class="hero-actions">
+    <a class="btn-primary" href="#"><span>Start for free</span></a>
+    <a class="btn-ghost" href="#">View documentation</a>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat">
+      <div class="stat-num" data-target="99.9">0</div>
+      <div class="stat-label">Uptime SLA</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" data-target="12">0</div>
+      <div class="stat-label">ms avg latency</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num" data-target="4200">0</div>
+      <div class="stat-label">Teams onboarded</div>
+    </div>
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee-section">
+  <div class="marquee-track">
+    <div class="marquee-item"><span class="marquee-dot"></span>Real-time Inference</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Auto-scaling Clusters</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Zero-downtime Deploys</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Observability Suite</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Multi-region CDN</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Vector Database</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Fine-tuning Pipeline</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>REST + GraphQL APIs</div>
+    <!-- duplicate for seamless loop -->
+    <div class="marquee-item"><span class="marquee-dot"></span>Real-time Inference</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Auto-scaling Clusters</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Zero-downtime Deploys</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Observability Suite</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Multi-region CDN</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Vector Database</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>Fine-tuning Pipeline</div>
+    <div class="marquee-item"><span class="marquee-dot"></span>REST + GraphQL APIs</div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div style="max-width:1200px; margin:0 auto; padding:120px 60px;">
+    <div class="section-label reveal">Core Capabilities</div>
+    <h2 class="section-title reveal">Everything your AI stack <span class="accent">needs to ship.</span></h2>
+
+    <div class="features-grid reveal">
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <div class="feature-title">Instant Inference</div>
+        <p class="feature-desc">Sub-20ms p99 latency across all model sizes. Cold starts eliminated with our predictive warm pool technology.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔮</div>
+        <div class="feature-title">Smart Autoscaling</div>
+        <p class="feature-desc">Traffic-aware scaling that reacts in under 200ms. Never over-provision. Never drop a request.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡</div>
+        <div class="feature-title">Enterprise Security</div>
+        <p class="feature-desc">SOC 2 Type II. Zero-trust networking. Full audit logs. Private VPC deployments available on all plans.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📡</div>
+        <div class="feature-title">Global Edge Network</div>
+        <p class="feature-desc">Deploy to 28 regions simultaneously. Serve users from the nearest point of presence, always.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <div class="feature-title">Full Observability</div>
+        <p class="feature-desc">Token usage, latency histograms, error rates, cost attribution. One dashboard — total clarity.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🧬</div>
+        <div class="feature-title">Fine-tuning Pipeline</div>
+        <p class="feature-desc">Push a dataset, trigger a run. Track experiments with versioning built in from day one.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SHOWCASE -->
+<section id="showcase">
+  <div style="max-width:1200px; margin:0 auto; padding:0 60px 120px;">
+    <div class="section-label reveal">Live Platform</div>
+    <h2 class="section-title reveal">Ship faster with a <span class="accent">developer-first</span> API.</h2>
+
+    <div class="showcase-card reveal">
+      <div class="showcase-header">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <span class="showcase-title">nexora-sdk · inference.ts</span>
+      </div>
+      <div class="showcase-body">
+        <div class="showcase-left">
+          <div class="code-block">
+            <code>
+              <span class="code-line"><span class="c-comment">// Initialize Nexora client</span></span>
+              <span class="code-line"><span class="c-keyword">import</span> <span class="c-normal">{ Nexora } </span><span class="c-keyword">from</span> <span class="c-str">'@nexora/sdk'</span></span>
+              <span class="code-line"></span>
+              <span class="code-line"><span class="c-keyword">const</span> <span class="c-normal">client = </span><span class="c-keyword">new</span> <span class="c-fn">Nexora</span><span class="c-normal">({</span></span>
+              <span class="code-line"><span class="c-normal">  apiKey: process.env.</span><span class="c-str">NEXORA_KEY</span><span class="c-normal">,</span></span>
+              <span class="code-line"><span class="c-normal">  region: </span><span class="c-str">'eu-west-1'</span></span>
+              <span class="code-line"><span class="c-normal">})</span></span>
+              <span class="code-line"></span>
+              <span class="code-line"><span class="c-comment">// Run inference — sub 15ms p99</span></span>
+              <span class="code-line"><span class="c-keyword">const</span> <span class="c-normal">result = </span><span class="c-keyword">await</span> client.<span class="c-fn">inference</span><span class="c-normal">({</span></span>
+              <span class="code-line"><span class="c-normal">  model: </span><span class="c-str">'llm-turbo-v3'</span><span class="c-normal">,</span></span>
+              <span class="code-line"><span class="c-normal">  prompt: userInput,</span></span>
+              <span class="code-line"><span class="c-normal">  maxTokens: </span><span class="c-num">1024</span><span class="c-normal">,</span></span>
+              <span class="code-line"><span class="c-normal">  stream: </span><span class="c-keyword">true</span></span>
+              <span class="code-line"><span class="c-normal">})</span></span>
+              <span class="code-line"></span>
+              <span class="code-line"><span class="c-keyword">for await</span> <span class="c-normal">(</span><span class="c-keyword">const</span><span class="c-normal"> chunk of result.</span><span class="c-fn">stream</span><span class="c-normal">()) {</span></span>
+              <span class="code-line"><span class="c-normal">  process.stdout.</span><span class="c-fn">write</span><span class="c-normal">(chunk.text)</span></span>
+              <span class="code-line"><span class="c-normal">}</span></span>
+            </code>
+          </div>
+        </div>
+        <div class="showcase-right">
+          <div style="font-size:0.75rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); margin-bottom:4px;">Live Metrics</div>
+          <div class="metric-card">
+            <div><div class="metric-label">Requests / sec</div></div>
+            <div><div class="metric-value">48,291</div><div class="metric-change">↑ 12.4%</div></div>
+          </div>
+          <div class="metric-card">
+            <div><div class="metric-label">Avg latency (p99)</div></div>
+            <div><div class="metric-value">11ms</div><div class="metric-change">↓ 3.1ms</div></div>
+          </div>
+          <div class="metric-card">
+            <div><div class="metric-label">Models deployed</div></div>
+            <div><div class="metric-value">1,842</div><div class="metric-change">↑ 8 today</div></div>
+          </div>
+          <div class="metric-card">
+            <div><div class="metric-label">Error rate</div></div>
+            <div><div class="metric-value">0.003%</div><div class="metric-change">↓ stable</div></div>
+          </div>
+          <div class="metric-card">
+            <div><div class="metric-label">GPU Utilization</div></div>
+            <div><div class="metric-value">91.2%</div><div class="metric-change">↑ optimal</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="section-label reveal">Simple Pricing</div>
+  <h2 class="section-title reveal">Transparent costs.<br><span class="accent">No surprises.</span></h2>
+
+  <div class="pricing-grid reveal">
+    <div class="pricing-card">
+      <div class="pricing-name">Starter</div>
+      <div class="pricing-price"><sup>$</sup>49<span>/mo</span></div>
+      <p class="pricing-desc">Perfect for indie builders and early-stage projects exploring production AI.</p>
+      <ul class="pricing-features">
+        <li>1M tokens / month</li>
+        <li>3 model deployments</li>
+        <li>Community support</li>
+        <li>Basic analytics</li>
+        <li>1 region</li>
+      </ul>
+      <button class="btn-plan">Get started</button>
+    </div>
+
+    <div class="pricing-card featured">
+      <div class="pricing-name">Pro</div>
+      <div class="pricing-price"><sup>$</sup>199<span>/mo</span></div>
+      <p class="pricing-desc">For teams shipping real products with real traffic. Full observability included.</p>
+      <ul class="pricing-features">
+        <li>20M tokens / month</li>
+        <li>Unlimited deployments</li>
+        <li>Priority support 24/7</li>
+        <li>Full observability suite</li>
+        <li>5 regions</li>
+        <li>Fine-tuning pipeline</li>
+      </ul>
+      <button class="btn-plan featured">Get started</button>
+    </div>
+
+    <div class="pricing-card">
+      <div class="pricing-name">Enterprise</div>
+      <div class="pricing-price" style="font-size:2rem;">Custom</div>
+      <p class="pricing-desc">Dedicated infrastructure, SLAs, private VPC, and white-glove onboarding.</p>
+      <ul class="pricing-features">
+        <li>Unlimited tokens</li>
+        <li>Private cluster</li>
+        <li>Dedicated SRE team</li>
+        <li>SOC 2 + BAA</li>
+        <li>All regions</li>
+        <li>Custom contracts</li>
+      </ul>
+      <button class="btn-plan">Contact sales</button>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+  <div class="cta-glow"></div>
+  <h2>Ready to <span class="gradient">go live?</span></h2>
+  <p>Join 4,200+ engineering teams already building the next generation of AI products on Nexora.</p>
+  <div class="hero-actions">
+    <a class="btn-primary" href="#"><span>Start for free</span></a>
+    <a class="btn-ghost" href="#">Talk to us</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <span class="footer-note">© 2025 Nexora Inc. — Concept UI by <strong>Pixel Node Studio</strong></span>
+  <span class="footer-credit">Design & Dev · <a href="https://mariosgian.github.io">mariosgian.github.io</a></span>
+</footer>
+
+<script>
+// ── CURSOR
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursor-ring');
+let mx = 0, my = 0, rx = 0, ry = 0;
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; cursor.style.left = mx + 'px'; cursor.style.top = my + 'px'; });
+function animRing() { rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12; ring.style.left = rx + 'px'; ring.style.top = ry + 'px'; requestAnimationFrame(animRing); }
+animRing();
+
+// ── CANVAS PARTICLES
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+
+const particles = [];
+const PARTICLE_COUNT = 80;
+
+for (let i = 0; i < PARTICLE_COUNT; i++) {
+  particles.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3,
+    size: Math.random() * 1.5 + 0.5,
+    opacity: Math.random() * 0.4 + 0.1,
+    color: Math.random() > 0.5 ? '0,245,255' : '124,58,237'
+  });
+}
+
+function drawParticles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    if (p.x < 0) p.x = canvas.width;
+    if (p.x > canvas.width) p.x = 0;
+    if (p.y < 0) p.y = canvas.height;
+    if (p.y > canvas.height) p.y = 0;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${p.color},${p.opacity})`;
+    ctx.fill();
+  });
+
+  // connections
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x;
+      const dy = particles[i].y - particles[j].y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 120) {
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x, particles[i].y);
+        ctx.lineTo(particles[j].x, particles[j].y);
+        ctx.strokeStyle = `rgba(0,245,255,${0.06 * (1 - dist/120)})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+  }
+  requestAnimationFrame(drawParticles);
+}
+drawParticles();
+
+// ── SCROLL REVEAL
+const reveals = document.querySelectorAll('.reveal');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => e.target.classList.add('visible'), i * 80);
+      observer.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.1 });
+reveals.forEach(el => observer.observe(el));
+
+// ── COUNTER ANIMATION
+function animateCounter(el, target, decimals = 0, suffix = '') {
+  let start = 0; const duration = 2000; const step = 16;
+  const increment = target / (duration / step);
+  const timer = setInterval(() => {
+    start += increment;
+    if (start >= target) { start = target; clearInterval(timer); }
+    el.textContent = decimals ? start.toFixed(1) + suffix : Math.floor(start).toLocaleString() + suffix;
+  }, step);
+}
+
+const statsObserver = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const nums = e.target.querySelectorAll('[data-target]');
+      nums.forEach(n => {
+        const t = parseFloat(n.dataset.target);
+        if (t === 99.9) animateCounter(n, t, 1, '%');
+        else if (t === 12) animateCounter(n, t, 0, 'ms');
+        else animateCounter(n, t);
+      });
+      statsObserver.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.5 });
+const statsSection = document.querySelector('.hero-stats');
+if (statsSection) statsObserver.observe(statsSection);
+</script>
+</body>
+</html>
